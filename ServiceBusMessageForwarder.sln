@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27428.2043
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceBusMessageForwarder", "ServiceBusMessageForwarder.csproj", "{57B8529B-40A7-4538-B07C-A8D1A78554A7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceBusMessageForwarder", "ServiceBusMessageForwarder\ServiceBusMessageForwarder.csproj", "{57B8529B-40A7-4538-B07C-A8D1A78554A7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceBusMessageForwarder.IntegrationTests", "..\ServiceBusMessageForwarder.IntegrationTests\ServiceBusMessageForwarder.IntegrationTests.csproj", "{F98D6DDC-2CD6-4BE0-96FB-5BD3A958A4A4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceBusMessageForwarder.IntegrationTests", "ServiceBusMessageForwarder.IntegrationTests\ServiceBusMessageForwarder.IntegrationTests.csproj", "{F98D6DDC-2CD6-4BE0-96FB-5BD3A958A4A4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
