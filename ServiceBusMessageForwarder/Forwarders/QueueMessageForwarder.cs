@@ -2,25 +2,28 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.ServiceBus.Messaging;
+using ServiceBusMessageForwarder.Extensions;
 using ServiceBusMessageForwarder.Logging;
 
 namespace ServiceBusMessageForwarder.Forwarders
 {
     public class QueueMessageForwarder
     {
-        private readonly ILogger _logger;
+        private readonly ILogger _activityLogger;
+        private readonly ILogger _messageLogger;
         private readonly TimeSpan _serverWaitTime = TimeSpan.FromSeconds(0.2);
         private readonly int _messagesToHandle;
 
-        public QueueMessageForwarder(ILogger logger,  int messagesToHandle = 10)
+        public QueueMessageForwarder(ILogger activityLogger, ILogger messageLogger,  int messagesToHandle = 10)
         {
-            _logger = logger;
+            _activityLogger = activityLogger;
+            _messageLogger = messageLogger;
             _messagesToHandle = messagesToHandle;
         }
 
         public void ProcessSessionQueue(QueueClient sourceClient, QueueClient destinationClient)
         {
-            _logger.Log($"[{sourceClient.Path}] - Processing queue requiring a session", 0, 1);
+            _activityLogger.Log($"[{sourceClient.Path}] - Processing queue requiring a session", 0, 1);
 
             var totalMessagesForwarded = 0;
 
@@ -38,7 +41,7 @@ namespace ServiceBusMessageForwarder.Forwarders
 
                 foreach (var sessionId in sessionIds)
                 {
-                    _logger.Log($"[{sourceClient.Path}] - Processing queue session ID: {sessionId} ");
+                    _activityLogger.Log($"[{sourceClient.Path}] - Processing queue session ID: {sessionId} ");
                     
                     var messagesRemaining = true;
                     
@@ -50,12 +53,15 @@ namespace ServiceBusMessageForwarder.Forwarders
                         var messageCount = messages.Count();
                         if (messageCount > 0)
                         {
-                            _logger.Log($"Batch of {messageCount} message(s) received for processing", 1);
+                            _activityLogger.Log($"Batch of {messageCount} message(s) received for processing", 1);
 
                             var messagesForwarded = 0;
 
                             foreach (var message in messages)
                             {
+                                // log message
+                                _messageLogger?.Log($"Queue: [{sourceClient.Path}]\n{message.GetSingleLineContent()}\n");
+
                                 destinationClient.Send(message.Clone());
                                     
                                 messagesForwarded++;
@@ -64,12 +70,12 @@ namespace ServiceBusMessageForwarder.Forwarders
                                 message.Complete();
                             }
 
-                            _logger.Log($"Processing complete: {messagesForwarded} message(s) forwarded", 1);
+                            _activityLogger.Log($"Processing complete: {messagesForwarded} message(s) forwarded", 1);
                         }
                         else
                         {
                             messagesRemaining = false;
-                            _logger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process in this session", 1);
+                            _activityLogger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process in this session", 1);
                         }
 
                         messageSession.Close();
@@ -78,15 +84,15 @@ namespace ServiceBusMessageForwarder.Forwarders
             }
             else
             {
-                _logger.Log("No sessions exist - no messages to forward", 1);
+                _activityLogger.Log("No sessions exist - no messages to forward", 1);
             }
 
-            _logger.Log($"[{sourceClient.Path}] - Completed processing queue - {totalMessagesForwarded} message(s) forwarded");
+            _activityLogger.Log($"[{sourceClient.Path}] - Completed processing queue - {totalMessagesForwarded} message(s) forwarded");
         }
 
         public void ProcessQueue(QueueClient sourceClient, QueueClient destinationClient)
         {
-            _logger.Log($"[{sourceClient.Path}] - Processing queue");
+            _activityLogger.Log($"[{sourceClient.Path}] - Processing queue");
             
             var totalMessagesForwarded = 0;
 
@@ -100,12 +106,15 @@ namespace ServiceBusMessageForwarder.Forwarders
                 var messageCount = messages.Count();
                 if (messageCount > 0)
                 {
-                    _logger.Log($"Batch of {messageCount} message(s) received for processing", 1);
+                    _activityLogger.Log($"Batch of {messageCount} message(s) received for processing", 1);
 
                     var messagesForwarded = 0;
 
                     foreach (var message in messages)
                     {
+                        // log message
+                        _messageLogger?.Log($"Queue: [{sourceClient.Path}]\n{message.GetSingleLineContent()}\n");
+
                         // send messages to destination queue    
                         destinationClient.Send(message.Clone());
 
@@ -115,16 +124,16 @@ namespace ServiceBusMessageForwarder.Forwarders
                         message.Complete();
                     }
 
-                    _logger.Log($"Processing complete: {messagesForwarded} message(s) forwarded", 1);
+                    _activityLogger.Log($"Processing complete: {messagesForwarded} message(s) forwarded", 1);
                 }
                 else
                 {
                     messagesRemaining = false;
-                    _logger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process", 1);
+                    _activityLogger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process", 1);
                 }
             }
 
-            _logger.Log($"[{sourceClient.Path}] - Completed processing queue - {totalMessagesForwarded} message(s) forwarded");
+            _activityLogger.Log($"[{sourceClient.Path}] - Completed processing queue - {totalMessagesForwarded} message(s) forwarded");
         }
     }
 }

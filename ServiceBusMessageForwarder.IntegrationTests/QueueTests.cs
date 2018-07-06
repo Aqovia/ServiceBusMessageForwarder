@@ -50,7 +50,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
             });
             "When the service has run".x(() =>
             {
-                new ServiceBusMessageForwarder(_logger, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
+                new ServiceBusMessageForwarder(_logger, null, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
             });
             "Then the message is forwarded to the destination queue".x(() =>
             {
@@ -87,7 +87,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
             });
             "When the service has run".x(() =>
             {
-                new ServiceBusMessageForwarder(_logger, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
+                new ServiceBusMessageForwarder(_logger, null, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
             });
             "Then the message is not forwarded to the destination".x(() =>
             {
@@ -126,7 +126,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
             });
             "When the service has run".x(() =>
             {
-                new ServiceBusMessageForwarder(_logger, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
+                new ServiceBusMessageForwarder(_logger, null, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
             });
             "Then the message is not forwarded to the destination".x(() =>
             {
@@ -164,7 +164,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
             });
             "When the service has run".x(() =>
             {
-                new ServiceBusMessageForwarder(_logger, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
+                new ServiceBusMessageForwarder(_logger, null, _sourceConnectionString, _destinationConnectionString, ignoreQueues, _ignoreTopics, _ignoreSubscriptions).Run();
             });
             "Then the messages are forwarded to the destination queue".x(() =>
             {

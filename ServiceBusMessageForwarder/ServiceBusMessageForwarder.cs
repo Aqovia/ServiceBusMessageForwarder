@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Microsoft.ServiceBus;
 using Microsoft.ServiceBus.Messaging;
 using System.Configuration;
@@ -25,20 +24,20 @@ namespace ServiceBusMessageForwarder
         private readonly string[] _ignoreSubscriptionsPatterns;
 
 
-        private readonly ILogger _logger;
+        private readonly ILogger _activityLogger;
+        private readonly ILogger _messageLogger;
 
         private readonly SubscriptionMessageForwarder _subscriptionMessageForwarder;
         private readonly QueueMessageForwarder _queueMessageForwarder;
-
-        private readonly List<string> _forwardedMessageIds;
-
-        public ServiceBusMessageForwarder(ILogger logger, string sourceConnectionString, string destinationConnectionString, 
+        
+        public ServiceBusMessageForwarder(ILogger activityLogger, ILogger messageLogger, string sourceConnectionString, string destinationConnectionString, 
             string ignoreQueues, string ignoreTopics, string ignoreSubscriptions, int messagesToHandle = 10)
         {
-            _logger = logger;
-            
-            _subscriptionMessageForwarder = new SubscriptionMessageForwarder(_logger, messagesToHandle);
-            _queueMessageForwarder = new QueueMessageForwarder(_logger, messagesToHandle);
+            _activityLogger = activityLogger;
+            _messageLogger = messageLogger;
+
+            _subscriptionMessageForwarder = new SubscriptionMessageForwarder(_activityLogger, _messageLogger, messagesToHandle);
+            _queueMessageForwarder = new QueueMessageForwarder(_activityLogger, _messageLogger, messagesToHandle);
 
             _sourceConnectionString = sourceConnectionString;
             _destinationConnectionString = destinationConnectionString;
@@ -49,25 +48,23 @@ namespace ServiceBusMessageForwarder
             _ignoreQueuesPatterns = ignoreQueues.Split(',').Where(_ => !string.IsNullOrWhiteSpace(_)).ToArray();
             _ignoreTopicPatterns = ignoreTopics.Split(',').Where(_ => !string.IsNullOrWhiteSpace(_)).ToArray();
             _ignoreSubscriptionsPatterns = ignoreSubscriptions.Split(',').Where(_ => !string.IsNullOrWhiteSpace(_)).ToArray();
-
-            _forwardedMessageIds = new List<string>();
         }
         
         public void Run()
         {
             try
             {
-                _logger.Log("Running");
+                _activityLogger.Log("Running");
 
                 ProcessQueues();
 
                 ProcessTopics();
 
-                _logger.Log("Finished running");
+                _activityLogger.Log("Finished running");
             }
             catch (Exception e)
             {
-                _logger.Log($"! Exception: {e.Message}\n\n", 0, 2);
+                _activityLogger.Log($"! Exception: {e.Message}\n\n", 0, 2);
             }
         }
 
@@ -76,15 +73,15 @@ namespace ServiceBusMessageForwarder
             var queues = _sourceNamespaceManager.GetQueues();
             var destinationQueues = _destinationNamespaceManager.GetQueues().Select(queue => queue.Path);
             
-            _logger.Log($"{queues.Count()} queue(s) found");
+            _activityLogger.Log($"{queues.Count()} queue(s) found");
 
             foreach (var queue in queues)
             {
                 if (IsQueueIgnored(queue.Path))
-                    _logger.Log($"Ignoring queue: [{queue}]");
+                    _activityLogger.Log($"Ignoring queue: [{queue}]");
 
                 else if (!destinationQueues.Contains(queue.Path))
-                    _logger.Log($"Skipping queue, which does not exist in destination: [{queue}]");
+                    _activityLogger.Log($"Skipping queue, which does not exist in destination: [{queue}]");
 
                 else
                 {
@@ -103,7 +100,7 @@ namespace ServiceBusMessageForwarder
                     }
                     catch (Exception e)
                     {
-                        _logger.Log($"! Exception processing [{queue.Path}] queue: {e.Message}\n\n", 0, 2);
+                        _activityLogger.Log($"! Exception processing [{queue.Path}] queue: {e.Message}\n\n", 0, 2);
                     }
                     finally
                     {
@@ -119,15 +116,15 @@ namespace ServiceBusMessageForwarder
             var topics = _sourceNamespaceManager.GetTopics().Select(topic => topic.Path);
             var destinationTopics = _destinationNamespaceManager.GetTopics().Select(topic => topic.Path);
 
-            _logger.Log($"{topics.Count()} topic(s) found");
+            _activityLogger.Log($"{topics.Count()} topic(s) found");
 
             foreach (var topic in topics)
             {
                 if (IsTopicIgnored(topic))
-                    _logger.Log($"Ignoring topic: [{topic}]");
+                    _activityLogger.Log($"Ignoring topic: [{topic}]");
 
                 else if (!destinationTopics.Contains(topic))
-                    _logger.Log($"Skipping topic, which does not exist in destination: [{topic}]");
+                    _activityLogger.Log($"Skipping topic, which does not exist in destination: [{topic}]");
 
                 else
                     ProcessTopic(topic);
@@ -136,12 +133,12 @@ namespace ServiceBusMessageForwarder
 
         private void ProcessTopic(string topic)
         {
-            _logger.Log($"[{topic}] - Processing topic ", 0, 1);
+            _activityLogger.Log($"[{topic}] - Processing topic ", 0, 1);
             
             // get subscriptions in source topic
             var subscriptions = _sourceNamespaceManager.GetSubscriptions(topic);
 
-            _logger.Log($"[{topic}] - {subscriptions.Count()} subscription(s) found");
+            _activityLogger.Log($"[{topic}] - {subscriptions.Count()} subscription(s) found");
 
             // forward messages in each subscription to destination topic
             foreach (var subscription in subscriptions)
@@ -153,27 +150,24 @@ namespace ServiceBusMessageForwarder
                 {
                     if (IsSubscriptionIgnored(subscription.Name))
                     {
-                        _logger.Log($"Ignoring subscription: [{topic}].[{subscription.Name}]");
+                        _activityLogger.Log($"Ignoring subscription: [{topic}].[{subscription.Name}]");
                     }
                     else
                     {
                         subscriptionClient =
-                            SubscriptionClient.CreateFromConnectionString(_sourceConnectionString, topic,
-                                subscription.Name);
+                            SubscriptionClient.CreateFromConnectionString(_sourceConnectionString, topic, subscription.Name);
                         destinationTopicClient =
                             TopicClient.CreateFromConnectionString(_destinationConnectionString, topic);
 
                         if (subscription.RequiresSession)
-                            _subscriptionMessageForwarder.ProcessSessionSubscription(subscriptionClient,
-                                destinationTopicClient, _forwardedMessageIds);
+                            _subscriptionMessageForwarder.ProcessSessionSubscription(subscriptionClient, destinationTopicClient);
                         else
-                            _subscriptionMessageForwarder.ProcessSubscription(subscriptionClient,
-                                destinationTopicClient, _forwardedMessageIds);
+                            _subscriptionMessageForwarder.ProcessSubscription(subscriptionClient, destinationTopicClient);
                     }
                 }
                 catch (Exception e)
                 {
-                    _logger.Log($"! Exception processing [{topic}].[{subscription.Name}] subscription: {e.Message}\n\n",
+                    _activityLogger.Log($"! Exception processing [{topic}].[{subscription.Name}] subscription: {e.Message}\n\n",
                         0, 2);
                 }
                 finally
@@ -183,7 +177,7 @@ namespace ServiceBusMessageForwarder
                 }
             }
 
-            _logger.Log($"[{topic}] - Completed processing topic");
+            _activityLogger.Log($"[{topic}] - Completed processing topic");
         }
         
         private bool IsQueueIgnored(string queue) =>
@@ -204,10 +198,14 @@ namespace ServiceBusMessageForwarder
             if (!int.TryParse(ConfigurationManager.AppSettings["ServiceSleepTimeSeconds"], out int serviceSleepTimeSeconds))
                 serviceSleepTimeSeconds = 10;
 
-            using (var logger = new Logger())
+            var messageLogger = bool.TryParse(ConfigurationManager.AppSettings["LogMessages"], out bool logMessages) && logMessages ?
+                new Logger($"SBMF_MESSAGE_LOG_{DateTime.UtcNow:yyyyMMdd}.log") : null;
+
+            using (var activityLogger = new Logger($"SBMF_ACTIVITY_LOG_{DateTime.UtcNow:yyyyMMdd}.log"))
             {
                 var service = new ServiceBusMessageForwarder(
-                    logger,
+                    activityLogger,
+                    messageLogger,
                     ConfigurationManager.AppSettings["SourceConnectionString"],
                     ConfigurationManager.AppSettings["DestinationConnectionString"],
                     ConfigurationManager.AppSettings["IgnoreQueues"],
@@ -231,6 +229,8 @@ namespace ServiceBusMessageForwarder
                         SendKeys.SendWait("{ENTER}"); // clear the uncaptured Console.ReadKey()
                 }
             }
+
+            messageLogger?.Dispose();
         }
         
     }

@@ -2,25 +2,31 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.ServiceBus.Messaging;
+using ServiceBusMessageForwarder.Extensions;
 using ServiceBusMessageForwarder.Logging;
 
 namespace ServiceBusMessageForwarder.Forwarders
 {
     public class SubscriptionMessageForwarder
     {
-        private readonly ILogger _logger;
+        private readonly ILogger _activityLogger;
+        private readonly ILogger _messageLogger;
         private readonly TimeSpan _serverWaitTime = TimeSpan.FromSeconds(0.2);
         private readonly int _messagesToHandle;
+        private readonly List<string> _forwardedMessageIds;
 
-        public SubscriptionMessageForwarder(ILogger logger,  int messagesToHandle = 10)
+        public SubscriptionMessageForwarder(ILogger activityLogger, ILogger messageLogger,  int messagesToHandle = 10)
         {
-            _logger = logger;
+            _activityLogger = activityLogger;
+            _messageLogger = messageLogger;
+
             _messagesToHandle = messagesToHandle;
+            _forwardedMessageIds = new List<string>();
         }
-        
-        public void ProcessSessionSubscription(SubscriptionClient subscriptionClient, TopicClient destinationTopicClient, List<string> messageIds)
+
+        public void ProcessSessionSubscription(SubscriptionClient subscriptionClient, TopicClient destinationTopicClient)
         {
-            _logger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Processing subscription requiring a session");
+            _activityLogger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Processing subscription requiring a session");
             
             var totalMessagesForwarded = 0;
 
@@ -38,7 +44,7 @@ namespace ServiceBusMessageForwarder.Forwarders
 
                 foreach (var sessionId in sessionIds)
                 {
-                    _logger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Processing subscription session ID: {sessionId} ");
+                    _activityLogger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Processing subscription session ID: {sessionId} ");
                     
                     var messagesRemaining = true;
                     
@@ -50,18 +56,22 @@ namespace ServiceBusMessageForwarder.Forwarders
                         var messageCount = messages.Count();
                         if (messageCount > 0)
                         {
-                            _logger.Log($"Batch of {messageCount} message(s) received for processing", 1);
+                            _activityLogger.Log($"Batch of {messageCount} message(s) received for processing", 1);
 
                             var messagesForwarded = 0;
                             
                             foreach (var message in messages)
                             {
-                                if (!messageIds.Contains(message.MessageId)) // ignore duplicate messages, which have already been forwarded
+                                if (!_forwardedMessageIds.Contains(message.MessageId)) // ignore duplicate messages, which have already been forwarded
                                 {
+                                    // log message
+                                    _messageLogger?.Log($"Subscription: [{subscriptionClient.TopicPath}].[{subscriptionClient.Name}]\n" +
+                                                        $"{message.GetSingleLineContent()}\n");
+
                                     // send messages to destination topic    
                                     destinationTopicClient.Send(message.Clone());
-
-                                    messageIds.Add(message.MessageId);
+                                    
+                                    _forwardedMessageIds.Add(message.MessageId);
 
                                     messagesForwarded++;
                                     totalMessagesForwarded++;
@@ -70,13 +80,13 @@ namespace ServiceBusMessageForwarder.Forwarders
                                 message.Complete();
                             }
                             
-                            _logger.Log($"Processing complete: {messagesForwarded} message(s) forwarded " +
+                            _activityLogger.Log($"Processing complete: {messagesForwarded} message(s) forwarded " +
                                         $"({messageCount - messagesForwarded} duplicate(s) from other subscriptions)", 1);
                         }
                         else
                         {
                             messagesRemaining = false;
-                            _logger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process in this session", 1);
+                            _activityLogger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process in this session", 1);
                         }
 
                         messageSession.Close();
@@ -85,15 +95,15 @@ namespace ServiceBusMessageForwarder.Forwarders
             }
             else
             {
-                _logger.Log("No sessions exist - no messages to forward", 1);
+                _activityLogger.Log("No sessions exist - no messages to forward", 1);
             }
 
-            _logger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Completed processing subscription - {totalMessagesForwarded} message(s) forwarded");
+            _activityLogger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Completed processing subscription - {totalMessagesForwarded} message(s) forwarded");
         }
 
-        public void ProcessSubscription(SubscriptionClient subscriptionClient, TopicClient destinationTopicClient, List<string> messageIds)
+        public void ProcessSubscription(SubscriptionClient subscriptionClient, TopicClient destinationTopicClient)
         {
-            _logger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Processing subscription");
+            _activityLogger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Processing subscription");
             
             var totalMessagesForwarded = 0;
 
@@ -107,18 +117,22 @@ namespace ServiceBusMessageForwarder.Forwarders
                 var messageCount = messages.Count();
                 if (messageCount > 0)
                 {
-                    _logger.Log($"Batch of {messageCount} message(s) received for processing", 1);
+                    _activityLogger.Log($"Batch of {messageCount} message(s) received for processing", 1);
 
                     var messagesForwarded = 0;
 
                     foreach (var message in messages)
                     {
-                        if (!messageIds.Contains(message.MessageId)) // ignore duplicate messages, which have already been forwarded
+                        if (!_forwardedMessageIds.Contains(message.MessageId)) // ignore duplicate messages, which have already been forwarded
                         {
+                            // log message
+                            _messageLogger?.Log($"Subscription: [{subscriptionClient.TopicPath}].[{subscriptionClient.Name}]\n" +
+                                                $"{message.GetSingleLineContent()}\n");
+
                             // send messages to destination topic    
                             destinationTopicClient.Send(message.Clone());
 
-                            messageIds.Add(message.MessageId);
+                            _forwardedMessageIds.Add(message.MessageId);
 
                             messagesForwarded++;
                             totalMessagesForwarded++;
@@ -127,17 +141,17 @@ namespace ServiceBusMessageForwarder.Forwarders
                         message.Complete();
                     }
 
-                    _logger.Log($"Processing complete: {messagesForwarded} message(s) forwarded " +
+                    _activityLogger.Log($"Processing complete: {messagesForwarded} message(s) forwarded " +
                                 $"({messageCount - messagesForwarded} duplicate(s) from other subscriptions)", 1);
                 }
                 else
                 {
                     messagesRemaining = false;
-                    _logger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process", 1);
+                    _activityLogger.Log($"No {(totalMessagesForwarded > 0 ? "more " : "")}messages to process", 1);
                 }
             }
 
-            _logger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Completed processing subscription - {totalMessagesForwarded} message(s) forwarded");
+            _activityLogger.Log($"[{subscriptionClient.TopicPath}].[{subscriptionClient.Name}] - Completed processing subscription - {totalMessagesForwarded} message(s) forwarded");
         }
     }
 }

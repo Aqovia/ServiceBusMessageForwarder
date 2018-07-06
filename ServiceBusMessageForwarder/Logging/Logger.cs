@@ -7,27 +7,25 @@ namespace ServiceBusMessageForwarder.Logging
     {
         private StreamWriter _streamWriter;
         private const string LogsDirectory = "Logs";
-        private string _logFile;
 
-        public Logger()
+        public Logger() : this($"SBMF_LOG_{DateTime.UtcNow:yyyyMMdd}.log")
+        {
+        }
+
+        public Logger(string logFile)
         {
             Directory.CreateDirectory(LogsDirectory);
+            SetLogFile(logFile);
         }
 
         public void SetLogFile(string filename)
         {
             _streamWriter?.Dispose();
-
-            _logFile = filename;
-
             _streamWriter = File.AppendText($"{LogsDirectory}/{filename}");
         }
 
         public void Log(string message, int indentationLevel = 0, int newLines = 0)
         {
-            if (_logFile == null)
-                SetLogFile($"SBMF_LOG_{DateTime.UtcNow:yyyyMMdd}.log");
-
             var prefix = indentationLevel > 0
                 ? new string('\t', indentationLevel) + ">> "
                 : $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}: ";
