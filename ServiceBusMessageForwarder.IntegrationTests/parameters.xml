@@ -1,8 +1,0 @@
-﻿<parameters>
-  <parameter name="SourceConnectionString" defaultValue="">
-    <parameterEntry kind="XmlFile" scope="\\App.config$" match="/configuration/appSettings/add[@key='SourceConnectionString']/@value" />
-  </parameter>
-  <parameter name="DestinationConnectionString" defaultValue="">
-    <parameterEntry kind="XmlFile" scope="\\App.config$" match="/configuration/appSettings/add[@key='DestinationConnectionString']/@value" />
-  </parameter>
-</parameters>
