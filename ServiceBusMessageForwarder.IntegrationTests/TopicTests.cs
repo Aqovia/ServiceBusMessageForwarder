@@ -30,7 +30,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
         }
 
         [Scenario]
-        public void ForwardMessageWhenTopicExists()
+        public void ForwardMessageWhenTopicExistsInDestination()
         {
             var topicName = $"_sbmf-{DateTime.UtcNow:yyyyMMddHHmmss}-{new Random().Next(10000, 99999)}";
             var subscriptionName = "subscription1";
@@ -63,7 +63,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var messages = destinationSubscriptionClient.PeekBatch(10);
 
                 messages.Count().Should().Be(1);
-                messages.First().GetBody<Message>().Id.Should().Be(3011);
+                messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
             "And the message no longer exists in the source topic's subscription".x(() =>
             {
@@ -76,7 +76,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
         }
 
         [Scenario]
-        public void DoNotForwardMessageWhenTopicDoesNotExist()
+        public void DoNotForwardMessageWhenTopicDoesNotExistInDestination()
         {
             var topicName = $"_sbmf-{DateTime.UtcNow:yyyyMMddHHmmss}-{new Random().Next(10000, 99999)}";
             var subscriptionName = "subscription1";
@@ -111,7 +111,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var sourceSubscriptionClient = SubscriptionClient.CreateFromConnectionString(_sourceConnectionString, topicName, subscriptionName);
                 var messages = sourceSubscriptionClient.PeekBatch(10);
                 messages.Count().Should().Be(1);
-                messages.First().GetBody<Message>().Id.Should().Be(3011);
+                messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
 
             CleanupTopics(topicName);
@@ -161,7 +161,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var sourceSubscriptionClient = SubscriptionClient.CreateFromConnectionString(_sourceConnectionString, topicName, subscriptionName);
                 var messages = sourceSubscriptionClient.PeekBatch(10);
                 messages.Count().Should().Be(1);
-                messages.First().GetBody<Message>().Id.Should().Be(3011);
+                messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
 
             CleanupTopics(topicName);
@@ -211,14 +211,14 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var sourceSubscriptionClient = SubscriptionClient.CreateFromConnectionString(_sourceConnectionString, topicName, subscriptionName);
                 var messages = sourceSubscriptionClient.PeekBatch(10);
                 messages.Count().Should().Be(1);
-                messages.First().GetBody<Message>().Id.Should().Be(3011);
+                messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
 
             CleanupTopics(topicName);
         }
 
         [Scenario]
-        public void ForwardMessageWhenWhenNoSubscriptionsExist()
+        public void ForwardMessageEvenWhenNoSubscriptionsExistInDestination()
         {
             var topicName = $"_sbmf-{DateTime.UtcNow:yyyyMMddHHmmss}-{new Random().Next(10000, 99999)}";
             var subscriptionName = "subscription1";
@@ -290,12 +290,12 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var sourceSubscriptionClient = SubscriptionClient.CreateFromConnectionString(_sourceConnectionString, topicName, subscriptionName);
                 var messages = sourceSubscriptionClient.PeekBatch(10);
                 messages.Count().Should().Be(1);
-                messages.First().GetBody<Message>().Id.Should().Be(3011);
+                messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
 
                 var sourceSecondSubscriptionClient = SubscriptionClient.CreateFromConnectionString(_sourceConnectionString, topicName, secondSubscriptionName);
                 var secondMessages = sourceSecondSubscriptionClient.PeekBatch(10);
                 secondMessages.Count().Should().Be(1);
-                secondMessages.First().GetBody<Message>().Id.Should().Be(3011);
+                secondMessages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
             "When the service has run".x(() =>
             {
@@ -307,7 +307,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var messages = destinationSubscriptionClient.PeekBatch(10);
 
                 messages.Count().Should().Be(1);
-                messages.First().GetBody<Message>().Id.Should().Be(3011);
+                messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
             "And the message no longer exists in the source topic's subscriptions".x(() =>
             {
@@ -361,12 +361,12 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var messageSession1 = destinationSubscriptionClient.AcceptMessageSession(sessionId1);
                 var session1Messages = messageSession1.PeekBatch(10);
                 session1Messages.Count().Should().Be(1);
-                session1Messages.First().GetBody<Message>().Id.Should().Be(3011);
+                session1Messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
 
                 var messageSession2 = destinationSubscriptionClient.AcceptMessageSession(sessionId2);
                 var session2Messages = messageSession2.PeekBatch(10);
                 session2Messages.Count().Should().Be(1);
-                session2Messages.First().GetBody<Message>().Id.Should().Be(3011);
+                session2Messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
             "And the messages no longer exist in the source topic's subscription".x(() =>
             {

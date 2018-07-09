@@ -31,7 +31,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
         }
         
         [Scenario]
-        public void ForwardMessageWhenQueueExists()
+        public void ForwardMessageWhenQueueExistsInDestination()
         {
             var queueName = $"_sbmf-{DateTime.UtcNow:yyyyMMddHHmmss}-{new Random().Next(10000, 99999)}";
             var ignoreQueues = "";
@@ -57,7 +57,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var messages = destinationClient.PeekBatch(10);
 
                 messages.Count().Should().Be(1);
-                messages.First().GetBody<Message>().Id.Should().Be(3011);
+                messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
             "And the message no longer exists on the source queue".x(() =>
             {
@@ -69,7 +69,7 @@ namespace ServiceBusMessageForwarder.IntegrationTests
         }
 
         [Scenario]
-        public void DoNotForwardMessageWhenQueueDoesNotExist()
+        public void DoNotForwardMessageWhenQueueDoesNotExistInDestination()
         {
             var queueName = $"_sbmf-{DateTime.UtcNow:yyyyMMddHHmmss}-{new Random().Next(10000, 99999)}";
             var ignoreQueues = "";
@@ -173,12 +173,12 @@ namespace ServiceBusMessageForwarder.IntegrationTests
                 var messageSession1 = destinationQueueClient.AcceptMessageSession(sessionId1);
                 var session1Messages = messageSession1.PeekBatch(10);
                 session1Messages.Count().Should().Be(1);
-                session1Messages.First().GetBody<Message>().Id.Should().Be(3011);
+                session1Messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
 
                 var messageSession2 = destinationQueueClient.AcceptMessageSession(sessionId2);
                 var session2Messages = messageSession2.PeekBatch(10);
                 session2Messages.Count().Should().Be(1);
-                session2Messages.First().GetBody<Message>().Id.Should().Be(3011);
+                session2Messages.First().GetBody<Message>().Id.Should().Be(_testMessage.Id);
             });
             "And the message no longer exists in the source queue's queue".x(() =>
             {
