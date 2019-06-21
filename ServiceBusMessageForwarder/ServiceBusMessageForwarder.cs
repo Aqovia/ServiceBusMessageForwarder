@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ServiceBusMessageForwarder.Forwarders;
+using ServiceBusMessageForwarder.Helpers;
 using ServiceBusMessageForwarder.Logging;
 
 namespace ServiceBusMessageForwarder
@@ -221,12 +222,8 @@ namespace ServiceBusMessageForwarder
 
                     Console.WriteLine($"\n\n -- Sleeping for {serviceSleepTimeSeconds} seconds - Press a key to exit --\n\n");
 
-                    var keyWasPressed = Task.Factory.StartNew(Console.ReadKey).Wait(TimeSpan.FromSeconds(serviceSleepTimeSeconds));
-
-                    if (keyWasPressed)
+                    if (KeyInputDetector.WaitForKey(TimeSpan.FromSeconds(serviceSleepTimeSeconds)))
                         keepRunning = false;
-                    else
-                        SendKeys.SendWait("{ENTER}"); // clear the uncaptured Console.ReadKey()
                 }
             }
 
